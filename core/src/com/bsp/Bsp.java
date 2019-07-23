@@ -15,7 +15,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class Map {
+public class Bsp {
 
     // bsp components
     private Header header;
@@ -33,7 +33,7 @@ public class Map {
     private Mesh mesh;
     private Texture[] textures;
 
-    public Map(FileHandle file) {
+    public Bsp(FileHandle file) {
         try {
             load(file);
             generateMesh();
@@ -69,7 +69,7 @@ public class Map {
             textureInfos[i].flags = readInt();
             textureInfos[i].contents = readInt();
 
-            FileHandle textureFile = Gdx.files.internal("assets/" + textureInfos[i].name + ".jpg");
+            FileHandle textureFile = Gdx.files.internal(textureInfos[i].name + ".jpg");
 
             if (textureFile.exists()) {
                 textures[i] = new Texture(textureFile, true);
@@ -86,10 +86,10 @@ public class Map {
 
         for (int i = 0; i < vertices.length; i++) {
             vertices[i] = new Vertex();
-            // weird allocation here to suit default opengl coordinate system
+            // weird order here to suit default opengl coordinate system
             vertices[i].position[2] = readFloat();
             vertices[i].position[0] = readFloat();
-            vertices[i].position[1] = -readFloat();
+            vertices[i].position[1] = readFloat();
             vertices[i].texcoord[0][0] = readFloat();
             vertices[i].texcoord[0][1] = readFloat();
             vertices[i].texcoord[1][0] = readFloat();

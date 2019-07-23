@@ -6,10 +6,51 @@ import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PerspectiveCamera;
+import com.badlogic.gdx.graphics.g3d.utils.FirstPersonCameraController;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Vector3;
 
-public class GameScreen extends ScreenAdapter implements InputProcessor {
+public class GameScreen extends ScreenAdapter {
+
+    Bsp bsp;
+    ShaderProgram shader;
+    PerspectiveCamera camera;
+    FirstPersonCameraController cameraController;
+
+    @Override
+    public void show() {
+        camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.near = 1.0f;
+        camera.far = 9000.0f;
+
+        cameraController = new FirstPersonCameraController(camera);
+        cameraController.setVelocity(50);
+
+        ShaderProgram.pedantic = false;
+        shader = new ShaderProgram(vertexShader, fragmentShader);
+
+        bsp = new Bsp(Gdx.files.internal("test1.bsp"));
+
+        Gdx.input.setInputProcessor(cameraController);
+        Gdx.input.setCursorCatched(true);
+    }
+
+    @Override
+    public void render(float delta) {
+        cameraController.update();
+        camera.update();
+
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+        Gdx.gl.glCullFace(GL20.GL_FRONT);
+
+        shader.begin();
+        shader.setUniformMatrix("u_projTrans", camera.combined);
+        bsp.render(shader);
+        shader.end();
+    }
 
     String vertexShader = "attribute vec4 a_position;    \n" +
             "attribute vec4 a_color;\n" +
@@ -26,6 +67,7 @@ public class GameScreen extends ScreenAdapter implements InputProcessor {
             "   v_texIndex = a_texIndex; \n" +
             "   gl_Position =  u_projTrans * a_position;  \n" +
             "}                            \n";
+
     String fragmentShader = "#ifdef GL_ES\n" +
             "precision mediump float;\n" +
             "#endif\n" +
@@ -80,129 +122,4 @@ public class GameScreen extends ScreenAdapter implements InputProcessor {
             "    gl_FragColor = texture2D(u_texture15, v_texCoords);\n" +
             "  }\n" +
             "}";
-    private Map bsp;
-
-    private float rotationSpeed = 0.3f;
-    private ShaderProgram shader;
-    private PerspectiveCamera camera;
-    private int mouseX;
-    private int mouseY;
-    private boolean moving;
-    private float movementSpeed = 2.0f;
-
-    @Override
-    public void show() {
-        camera = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        camera.near = 1.0f;
-        camera.far = 9000.0f;
-
-        Gdx.input.setInputProcessor(this);
-        Gdx.input.setCursorCatched(true);
-
-        ShaderProgram.pedantic = false;
-        shader = new ShaderProgram(vertexShader, fragmentShader);
-
-        bsp = new Map(Gdx.files.internal("assets/test1.bsp"));
-    }
-
-    @Override
-    public boolean keyDown(int keycode) {
-        if (keycode == Input.Keys.ESCAPE) {
-            System.exit(0);
-        }
-
-        return false;
-    }
-
-    @Override
-    public boolean keyUp(int keycode) {
-        return false;
-    }
-
-    @Override
-    public boolean keyTyped(char character) {
-        return false;
-    }
-
-    @Override
-    public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        moving = true;
-
-        return false;
-    }
-
-    @Override
-    public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        moving = false;
-
-        return false;
-    }
-
-    @Override
-    public boolean touchDragged(int screenX, int screenY, int pointer) {
-        return processMouseLook(screenX, screenY);
-    }
-
-    @Override
-    public boolean mouseMoved(int screenX, int screenY) {
-        return processMouseLook(screenX, screenY);
-    }
-
-    @Override
-    public boolean scrolled(int amount) {
-        return false;
-    }
-
-    @Override
-    public void render(float delta) {
-        if (moving) {
-            camera.position.add(camera.direction.x * movementSpeed,
-                    camera.direction.y * movementSpeed,
-                    camera.direction.z * movementSpeed);
-            camera.update();
-        }
-
-        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
-        Gdx.gl.glEnable(GL20.GL_CULL_FACE);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
-        Gdx.gl.glCullFace(GL20.GL_BACK);
-
-        shader.begin();
-        shader.setUniformMatrix("u_projTrans", camera.combined);
-        bsp.render(shader);
-        shader.end();
-    }
-
-    private boolean processMouseLook(int screenX, int screenY) {
-        int magX = Math.abs(mouseX - screenX);
-        int magY = Math.abs(mouseY - screenY);
-
-        if (mouseX > screenX) {
-            camera.rotate(Vector3.Y, -1 * magX * rotationSpeed);
-            camera.update();
-        }
-
-        if (mouseX < screenX) {
-            camera.rotate(Vector3.Y, 1 * magX * rotationSpeed);
-            camera.update();
-        }
-
-        if (mouseY < screenY) {
-            if (camera.direction.y < 0.965)
-                camera.rotate(camera.direction.cpy().crs(Vector3.Y), 1 * magY * rotationSpeed);
-            camera.update();
-        }
-
-        if (mouseY > screenY) {
-            if (camera.direction.y > -0.965)
-                camera.rotate(camera.direction.cpy().crs(Vector3.Y), -1 * magY * rotationSpeed);
-            camera.update();
-        }
-
-        mouseX = screenX;
-        mouseY = screenY;
-
-        return false;
-    }
 }
